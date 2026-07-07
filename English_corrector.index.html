@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英語語法修正器</title>
+    <!-- 引入 Tailwind CSS 進行快速排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 DOMPurify 防範 XSS 攻擊 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
+
+    <!-- 主容器 -->
+    <div class="max-w-5xl mx-auto md:py-8 h-screen md:h-auto flex flex-col md:flex-row shadow-2xl bg-white overflow-hidden md:rounded-2xl relative">
+        
+        <!-- 左側：輸入區域 -->
+        <div class="w-full md:w-1/2 p-6 md:p-8 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col bg-gray-50">
+            <div class="mb-6 flex justify-between items-start">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        英語語法修正器
+                    </h1>
+                    <p class="text-sm text-gray-500 mt-1">請在下方輸入您需要修正的英文句子或段落。</p>
+                </div>
+                <div class="flex gap-2">
+                    <!-- 設定 API Key 按鈕 -->
+                    <button id="configBtn" class="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-100 rounded-lg transition-colors focus:outline-none" title="設定 API Key">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                    </button>
+                    <!-- 歷史記錄按鈕 -->
+                    <button id="historyBtn" class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors focus:outline-none" title="查看歷史記錄">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-grow flex flex-col relative">
+                <textarea id="sourceText" class="w-full flex-grow p-4 bg-white border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow text-base placeholder-gray-400" placeholder="Type or paste your English text here..."></textarea>
+                <div class="absolute bottom-4 right-4 flex items-center gap-2 text-xs text-gray-400">
+                    <span id="charCount">0 字</span>
+                </div>
+            </div>
+
+            <div class="mt-4 flex gap-3">
+                <button id="clearBtn" class="px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition-colors focus:outline-none hidden">
+                    清除
+                </button>
+                <button id="correctBtn" class="flex-grow bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-lg transition-all transform active:scale-95 shadow-md flex justify-center items-center gap-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="btnText">檢查語法 (Check Grammar)</span>
+                    <svg id="loadingIcon" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側：結果區域 -->
+        <div class="w-full md:w-1/2 p-6 md:p-8 flex flex-col bg-white">
+            <!-- 初始空狀態 -->
+            <div id="emptyState" class="flex-grow flex flex-col items-center justify-center text-gray-400 space-y-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p class="text-center">輸入英文後點擊「檢查語法」<br>修正結果與建議將顯示於此</p>
+            </div>
+
+            <!-- 結果內容區 (預設隱藏) -->
+            <div id="resultContainer" class="flex-grow flex flex-col hidden space-y-6">
+                <!-- 第二框：修正後的句子 -->
+                <div class="flex flex-col flex-grow-0">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            修正後的英語 (Corrected English)
+                        </label>
+                        <button class="tts-btn p-1 text-gray-400 hover:text-blue-600 transition-colors focus:outline-none" data-target="correctedText" title="朗讀">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 icon-default" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </button>
+                    </div>
+                    <div id="correctedText" class="w-full p-4 bg-blue-50/50 border border-blue-200 rounded-xl text-gray-800 text-lg md:text-xl font-medium leading-relaxed shadow-inner">
+                        <!-- 修正結果將動態插入至此 -->
+                    </div>
+                </div>
+
+                <!-- 第三框：語法注意事項與建議 -->
+                <div class="flex flex-col flex-grow">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                            語法注意事項與建議 (Grammar Notes)
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <!-- 語言切換選單 -->
+                            <select id="langSelect" class="text-xs border-gray-300 rounded-md bg-gray-50 focus:ring-amber-500 focus:border-amber-500 p-1">
+                                <option value="en">English (預設)</option>
+                                <option value="zh">繁體中文</option>
+                                <option value="vi">Tiếng Việt</option>
+                            </select>
+                            <button class="tts-btn p-1 text-gray-400 hover:text-amber-600 transition-colors focus:outline-none" data-target="suggestionsBox" title="朗讀">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 icon-default" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="suggestionsBox" class="w-full flex-grow p-5 bg-amber-50/30 border border-amber-200 rounded-xl text-gray-800 overflow-y-auto text-sm leading-relaxed shadow-inner prose prose-amber">
+                        <!-- 建議內容將動態插入至此 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 錯誤提示訊息 -->
+            <div id="errorMessage" class="hidden mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span id="errorText">發生錯誤，請稍後再試。</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key 設定彈出視窗 (Modal) -->
+    <div id="apiModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 relative">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                設定 Gemini API Key
+            </h2>
+            <p class="text-sm text-gray-600 mb-4">
+                請輸入您的 Google Gemini API Key。此金鑰將僅安全地儲存於您的瀏覽器本地空間 (localStorage)。<br>
+                <strong class="text-red-500 block mt-2">安全注意：</strong>這是純前端架構工具，雖然使用 HTTP Header 傳輸，但金鑰仍會暴露在您的瀏覽器端，請勿在公用電腦或非信任環境使用。若要部署為公開服務，請務必透過後端伺服器轉發請求。<br>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-500 hover:underline mt-2 inline-block">點此前往免費申請 API Key</a>
+            </p>
+            <input type="password" id="apiKeyInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mb-4" placeholder="AIzaSy...">
+            <div class="flex justify-end gap-2">
+                <button id="closeApiModalBtn" class="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">取消</button>
+                <button id="saveApiModalBtn" class="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 歷史記錄側邊欄 -->
+    <div id="historySidebar" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
+        <div class="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                歷史記錄
+            </h2>
+            <button id="closeHistoryBtn" class="text-gray-400 hover:text-gray-700 focus:outline-none p-1 rounded-md hover:bg-gray-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        <div id="historyList" class="flex-grow overflow-y-auto p-4 space-y-3">
+            <div class="text-center text-gray-400 mt-10 text-sm">暫無記錄</div>
+        </div>
+    </div>
+    <div id="historyOverlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-40 transition-opacity"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM 元素選取
+            const sourceText = document.getElementById('sourceText');
+            const charCount = document.getElementById('charCount');
+            const clearBtn = document.getElementById('clearBtn');
+            const correctBtn = document.getElementById('correctBtn');
+            const btnText = document.getElementById('btnText');
+            const loadingIcon = document.getElementById('loadingIcon');
+            const emptyState = document.getElementById('emptyState');
+            const resultContainer = document.getElementById('resultContainer');
+            const correctedText = document.getElementById('correctedText');
+            const suggestionsBox = document.getElementById('suggestionsBox');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const langSelect = document.getElementById('langSelect');
+            
+            const configBtn = document.getElementById('configBtn');
+            const apiModal = document.getElementById('apiModal');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const closeApiModalBtn = document.getElementById('closeApiModalBtn');
+            const saveApiModalBtn = document.getElementById('saveApiModalBtn');
+
+            const historyBtn = document.getElementById('historyBtn');
+            const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+            const historySidebar = document.getElementById('historySidebar');
+            const historyOverlay = document.getElementById('historyOverlay');
+            const historyList = document.getElementById('historyList');
+            const ttsBtns = document.querySelectorAll('.tts-btn');
+
+            // 狀態變數：從 localStorage 載入持久化記錄
+            let correctionHistory = JSON.parse(localStorage.getItem('grammar_history')) || [];
+            
+            // 用來暫存當前 API 回傳的 3 種語言的建議，以便切換
+            let currentSuggestionsData = {
+                en: "",
+                zh: "",
+                vi: ""
+            };
+            let currentTtsBtn = null;
+
+            // XSS 防禦：簡易的 HTML 跳脫函式，供純文字欄位使用
+            function escapeHTML(str) {
+                if (!str) return "";
+                return str.replace(/[&<>'"]/g, tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag));
+            }
+
+            // ===== API Key 邏輯 =====
+            function getApiKey() {
+                return localStorage.getItem('gemini_api_key');
+            }
+
+            function showApiModal() {
+                apiKeyInput.value = getApiKey() || '';
+                apiModal.classList.remove('hidden');
+            }
+
+            function closeApiModal() {
+                apiModal.classList.add('hidden');
+            }
+
+            configBtn.addEventListener('click', showApiModal);
+            closeApiModalBtn.addEventListener('click', closeApiModal);
+            saveApiModalBtn.addEventListener('click', () => {
+                const key = apiKeyInput.value.trim();
+                if (key) {
+                    localStorage.setItem('gemini_api_key', key);
+                    closeApiModal();
+                } else {
+                    alert('請輸入有效的 API Key');
+                }
+            });
+
+            // 初次使用若無 Key，提示設定
+            if (!getApiKey()) {
+                setTimeout(showApiModal, 500);
+            }
+
+            // ===== 歷史記錄邏輯 =====
+            function toggleHistory() {
+                const isHidden = historySidebar.classList.contains('translate-x-full');
+                if (isHidden) {
+                    historySidebar.classList.remove('translate-x-full');
+                    historyOverlay.classList.remove('hidden');
+                    renderHistory();
+                } else {
+                    historySidebar.classList.add('translate-x-full');
+                    historyOverlay.classList.add('hidden');
+                }
+            }
+
+            function renderHistory() {
+                if (correctionHistory.length === 0) {
+                    historyList.innerHTML = '<div class="text-center text-gray-400 mt-10 text-sm">暫無記錄</div>';
+                    return;
+                }
+                historyList.innerHTML = '';
+                [...correctionHistory].reverse().forEach((item, index) => {
+                    const realIndex = correctionHistory.length - 1 - index;
+                    const div = document.createElement('div');
+                    div.className = 'p-3 border border-gray-100 rounded-lg hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors group relative shadow-sm';
+                    
+                    // 使用 escapeHTML 過濾原始資料，防止 XSS
+                    const safeOriginal = escapeHTML(item.original);
+                    const safeCorrected = escapeHTML(item.corrected);
+                    
+                    div.innerHTML = `
+                        <div class="text-xs text-gray-400 mb-1 flex justify-between">
+                            <span>${item.time}</span>
+                            <span class="opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity">點擊載入</span>
+                        </div>
+                        <div class="text-sm text-gray-700 truncate font-medium" title="${safeOriginal}">${safeOriginal}</div>
+                        <div class="text-xs text-green-600 truncate mt-1" title="${safeCorrected}">${safeCorrected}</div>
+                    `;
+                    div.addEventListener('click', () => loadHistoryItem(realIndex));
+                    historyList.appendChild(div);
+                });
+            }
+
+            function loadHistoryItem(index) {
+                const item = correctionHistory[index];
+                sourceText.value = item.original;
+                correctedText.innerText = item.corrected; // 純文字安全
+                
+                // 載入該歷史記錄的三語資料
+                currentSuggestionsData = item.suggestionsData;
+                
+                // 根據當前下拉選單的值渲染
+                const selectedLang = langSelect.value;
+                suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+
+                emptyState.classList.add('hidden');
+                resultContainer.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+                checkInputs();
+                toggleHistory();
+            }
+
+            historyBtn.addEventListener('click', toggleHistory);
+            closeHistoryBtn.addEventListener('click', toggleHistory);
+            historyOverlay.addEventListener('click', toggleHistory);
+
+            // ===== iOS 內建語音 TTS 邏輯 =====
+            function playTTS(text, btnElement, lang = 'en-US') {
+                if (!text || text.trim() === '') return;
+                const iconDefault = btnElement.querySelector('.icon-default');
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                    if (currentTtsBtn) {
+                        const prevIconDefault = currentTtsBtn.querySelector('.icon-default');
+                        if (prevIconDefault) {
+                            prevIconDefault.classList.remove('text-red-500');
+                            prevIconDefault.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M15 12a3 3 0 11-6 0 3 3 0 016 0z" />';
+                        }
+                    }
+                    if (currentTtsBtn === btnElement) {
+                        currentTtsBtn = null;
+                        return;
+                    }
+                }
+                currentTtsBtn = btnElement;
+                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // 動態設定語系以確保發音正確
+                utterance.lang = lang; 
+                
+                utterance.onend = () => {
+                    iconDefault.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M15 12a3 3 0 11-6 0 3 3 0 016 0z" />';
+                    iconDefault.classList.remove('text-red-500');
+                    currentTtsBtn = null;
+                };
+                utterance.onerror = utterance.onend;
+                
+                iconDefault.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />';
+                iconDefault.classList.add('text-red-500');
+                
+                window.speechSynthesis.speak(utterance);
+            }
+
+            ttsBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+                    const targetEl = document.getElementById(targetId);
+                    const textToRead = targetEl.innerText || targetEl.textContent; 
+                    
+                    // 根據目標決定語系
+                    let lang = 'en-US';
+                    if (targetId === 'suggestionsBox') {
+                        const selectedLang = langSelect.value;
+                        if (selectedLang === 'zh') lang = 'zh-TW';
+                        else if (selectedLang === 'vi') lang = 'vi-VN';
+                    }
+                    
+                    playTTS(textToRead, btn, lang);
+                });
+            });
+
+            // ===== 語言切換邏輯 =====
+            langSelect.addEventListener('change', (e) => {
+                const selectedLang = e.target.value;
+                if (currentSuggestionsData && currentSuggestionsData[selectedLang]) {
+                    // 切換語言時，同樣使用 DOMPurify 進行安全過濾
+                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+                }
+            });
+
+            // ===== AI 核心邏輯 =====
+            const systemPrompt = `
+You are a professional, rigorous, yet friendly native English teacher.
+The user will provide an English sentence or paragraph.
+Your tasks are:
+1. Correct all grammatical, spelling, punctuation, AND contextual/word-choice errors to make it sound natural and native. Pay close attention to homophones and typos (e.g., "coal" vs "cool").
+2. Analyze the reasons for the corrections, point out grammar points and vocabulary misuse, and provide specific suggestions.
+
+CRITICAL: You must provide the exact same suggestions/explanations translated into three languages: English, Traditional Chinese (zh), and Vietnamese (vi).
+
+Respond ONLY in JSON format, without any markdown formatting like \`\`\`json.
+
+The JSON structure MUST be strictly as follows:
+{
+    "corrected_text": "Put the fully corrected English text here",
+    "suggestions_en": "Put HTML formatted string here containing notes and suggestions IN ENGLISH. Use basic tags like <ul>, <li>, <strong>, <br>. For each error, list: 'Original' -> 'Corrected', and briefly explain why.",
+    "suggestions_zh": "Put HTML formatted string here containing notes and suggestions IN TRADITIONAL CHINESE.",
+    "suggestions_vi": "Put HTML formatted string here containing notes and suggestions IN VIETNAMESE."
+}`;
+
+            function setLoading(isLoading) {
+                correctBtn.disabled = isLoading;
+                if (isLoading) {
+                    btnText.textContent = 'AI 分析中...';
+                    loadingIcon.classList.remove('hidden');
+                    errorMessage.classList.add('hidden');
+                } else {
+                    btnText.textContent = '檢查語法 (Check Grammar)';
+                    loadingIcon.classList.add('hidden');
+                }
+            }
+
+            function showError(message) {
+                errorText.textContent = message;
+                errorMessage.classList.remove('hidden');
+            }
+
+            function checkInputs() {
+                const text = sourceText.value;
+                charCount.textContent = `${text.length} 字`;
+                if (text.length > 0) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
+                }
+            }
+
+            sourceText.addEventListener('input', checkInputs);
+
+            clearBtn.addEventListener('click', () => {
+                sourceText.value = '';
+                checkInputs();
+                sourceText.focus();
+                emptyState.classList.remove('hidden');
+                resultContainer.classList.add('hidden');
+                errorMessage.classList.add('hidden');
+                window.speechSynthesis.cancel();
+            });
+
+            // 指數退避機制 (Exponential Backoff) 以提高連線穩定性
+            async function fetchWithRetry(url, options, maxRetries = 5) {
+                const delays = [1000, 2000, 4000, 8000, 16000];
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        if (response.ok) return response;
+                        
+                        // 遇到 400, 401, 403, 404 等不可恢復的客戶端錯誤，直接中斷不重試 (排除 429 限流)
+                        if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                            throw new Error(`Fatal HTTP error! status: ${response.status}`);
+                        }
+                        
+                        if (i === maxRetries - 1) throw new Error(`HTTP error! status: ${response.status}`);
+                    } catch (error) {
+                        // 如果是致命錯誤或達到最大重試次數，則向上拋出錯誤
+                        if (error.message.includes('Fatal') || i === maxRetries - 1) {
+                            throw error;
+                        }
+                    }
+                    // 等待對應秒數後重試
+                    await new Promise(resolve => setTimeout(resolve, delays[i]));
+                }
+            }
+
+            correctBtn.addEventListener('click', async () => {
+                const text = sourceText.value.trim();
+                const currentApiKey = getApiKey();
+
+                if (!currentApiKey) {
+                    showApiModal();
+                    return;
+                }
+                if (!text) return;
+
+                setLoading(true);
+                
+                // 改用穩定的 API Endpoint 別名，移除特定日期字尾
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+
+                try {
+                    const response = await fetchWithRetry(apiUrl, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            // 修正：透過自訂 Header 安全傳輸 API Key，避免在 URL 中暴露
+                            'x-goog-api-key': currentApiKey
+                        },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: text }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] },
+                            generationConfig: { 
+                                temperature: 0.1, 
+                                responseMimeType: "application/json" 
+                            }
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.candidates && data.candidates[0].content.parts[0].text) {
+                        const rawResponseText = data.candidates[0].content.parts[0].text;
+                        
+                        try {
+                            const parsedData = JSON.parse(rawResponseText);
+                            
+                            // 更新結果
+                            const cText = parsedData.corrected_text || "無法生成修正後的文本。";
+                            correctedText.innerText = cText;
+                            
+                            // 儲存三種語言的建議到變數中
+                            currentSuggestionsData = {
+                                en: parsedData.suggestions_en || "No suggestions provided.",
+                                zh: parsedData.suggestions_zh || "沒有提供建議。",
+                                vi: parsedData.suggestions_vi || "Không có gợi ý nào được cung cấp."
+                            };
+
+                            // 根據當前選擇的語言顯示內容 (透過 DOMPurify 過濾)
+                            const selectedLang = langSelect.value;
+                            suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+
+                            // 存入陣列並寫入 localStorage 實現資料持久化
+                            const now = new Date();
+                            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                            correctionHistory.push({
+                                original: text,
+                                corrected: cText,
+                                suggestionsData: { ...currentSuggestionsData }, 
+                                time: timeString
+                            });
+                            localStorage.setItem('grammar_history', JSON.stringify(correctionHistory));
+
+                            emptyState.classList.add('hidden');
+                            resultContainer.classList.remove('hidden');
+                            
+                        } catch (parseError) {
+                            console.error('JSON Parse error:', parseError);
+                            showError("AI 回傳的格式不正確，請再試一次。");
+                        }
+                    } else {
+                        showError("無法獲取 AI 的回應，請稍後再試。");
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    showError("網路連線失敗，請檢查網路狀態或稍後再試。");
+                } finally {
+                    setLoading(false);
+                }
+            });
+
+            checkInputs();
+        });
+    </script>
+</body>
+</html>
