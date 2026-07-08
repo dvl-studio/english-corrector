@@ -101,6 +101,10 @@
                                 <option value="zh">繁體中文</option>
                                 <option value="vi">Tiếng Việt</option>
                             </select>
+                            <!-- 新增翻譯按鈕 -->
+                            <button id="translateBtn" class="text-xs bg-amber-200 hover:bg-amber-300 text-amber-800 px-3 py-1 rounded-md transition-colors hidden font-medium shadow-sm focus:outline-none" title="將建議翻譯為選定的語言">
+                                翻譯
+                            </button>
                             <button class="tts-btn p-1 text-gray-400 hover:text-amber-600 transition-colors focus:outline-none" data-target="suggestionsBox" title="朗讀">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 icon-default" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             </button>
@@ -175,13 +179,8 @@
             const errorMessage = document.getElementById('errorMessage');
             const errorText = document.getElementById('errorText');
             const langSelect = document.getElementById('langSelect');
+            const translateBtn = document.getElementById('translateBtn');
             
-            const configBtn = document.getElementById('configBtn');
-            const apiModal = document.getElementById('apiModal');
-            const apiKeyInput = document.getElementById('apiKeyInput');
-            const closeApiModalBtn = document.getElementById('closeApiModalBtn');
-            const saveApiModalBtn = document.getElementById('saveApiModalBtn');
-
             const historyBtn = document.getElementById('historyBtn');
             const closeHistoryBtn = document.getElementById('closeHistoryBtn');
             const historySidebar = document.getElementById('historySidebar');
@@ -195,8 +194,8 @@
             // 用來暫存當前 API 回傳的 3 種語言的建議，以便切換
             let currentSuggestionsData = {
                 en: "",
-                zh: "",
-                vi: ""
+                zh: null,
+                vi: null
             };
             let currentTtsBtn = null;
 
@@ -241,6 +240,17 @@
             // 初次使用若無 Key，提示設定
             if (!getApiKey()) {
                 setTimeout(showApiModal, 500);
+            }
+
+            // ===== UI 輔助邏輯 =====
+            function updateTranslateBtnVisibility() {
+                const selectedLang = langSelect.value;
+                if (selectedLang === 'en' || currentSuggestionsData[selectedLang]) {
+                    // 如果選英文，或該語言已經翻譯過了，就隱藏翻譯按鈕
+                    translateBtn.classList.add('hidden');
+                } else {
+                    translateBtn.classList.remove('hidden');
+                }
             }
 
             // ===== 歷史記錄邏輯 =====
@@ -294,7 +304,14 @@
                 
                 // 根據當前下拉選單的值渲染
                 const selectedLang = langSelect.value;
-                suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+                if (currentSuggestionsData[selectedLang]) {
+                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+                } else {
+                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']) + 
+                        `<div class="mt-4 p-3 bg-white/60 border border-amber-200 rounded-lg text-amber-800 text-center text-sm font-medium">點擊「翻譯」按鈕以獲取此語言的說明</div>`;
+                }
+                
+                updateTranslateBtnVisibility();
 
                 emptyState.classList.add('hidden');
                 resultContainer.classList.remove('hidden');
@@ -365,13 +382,84 @@
             // ===== 語言切換邏輯 =====
             langSelect.addEventListener('change', (e) => {
                 const selectedLang = e.target.value;
+                updateTranslateBtnVisibility();
+                
                 if (currentSuggestionsData && currentSuggestionsData[selectedLang]) {
-                    // 切換語言時，同樣使用 DOMPurify 進行安全過濾
+                    // 如果有該語言的資料，直接顯示
                     suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+                } else if (currentSuggestionsData && currentSuggestionsData['en']) {
+                    // 如果沒有，顯示英文原文並提示需要翻譯
+                    const langName = e.target.options[e.target.selectedIndex].text;
+                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']) + 
+                        `<div class="mt-4 p-3 bg-white/60 border border-amber-200 rounded-lg text-amber-800 text-center text-sm font-medium">請點擊上方的「翻譯」按鈕來獲取 ${langName} 翻譯</div>`;
+                }
+            });
+
+            // ===== 翻譯按鈕邏輯 =====
+            translateBtn.addEventListener('click', async () => {
+                const selectedLang = langSelect.value;
+                if (selectedLang === 'en' || !currentSuggestionsData.en) return;
+
+                const targetLangName = selectedLang === 'zh' ? 'Traditional Chinese' : 'Vietnamese';
+                const translatePrompt = `You are an expert translator. Translate the following English grammar notes into ${targetLangName}.
+CRITICAL INSTRUCTIONS: 
+1. Maintain all original HTML tags (<ul>, <li>, <strong>, <br>, etc.) exactly as they are. Do not remove or alter them.
+2. Translate the explanatory reasons and grammar concepts.
+3. Keep the original and corrected English text examples (like 'Original -> Corrected') in English to preserve context.
+4. Respond ONLY in JSON format, without any markdown formatting like \`\`\`json.
+
+The JSON structure MUST be strictly as follows:
+{ "translated_html": "Put the translated HTML here" }`;
+
+                const originalHtml = currentSuggestionsData.en;
+                translateBtn.disabled = true;
+                const originalBtnText = translateBtn.innerText;
+                translateBtn.innerHTML = `<svg class="animate-spin h-4 w-4 mr-1 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>翻譯中...`;
+
+                try {
+                    const response = await fetchWithRetry(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: originalHtml }] }],
+                            systemInstruction: { parts: [{ text: translatePrompt }] },
+                            generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.candidates && data.candidates[0].content.parts[0].text) {
+                        const parsedData = JSON.parse(data.candidates[0].content.parts[0].text);
+                        
+                        // 儲存翻譯結果
+                        currentSuggestionsData[selectedLang] = parsedData.translated_html;
+                        suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+                        
+                        // 更新歷史記錄中的快取，這樣切換回以前的記錄時不用重新翻譯
+                        const currentHistoryIndex = correctionHistory.findIndex(h => h.suggestionsData && h.suggestionsData.en === currentSuggestionsData.en);
+                        if (currentHistoryIndex !== -1) {
+                            correctionHistory[currentHistoryIndex].suggestionsData[selectedLang] = parsedData.translated_html;
+                        }
+                        
+                        updateTranslateBtnVisibility();
+                    } else {
+                        throw new Error("無法獲取翻譯回應");
+                    }
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    alert("翻譯失敗，請檢查網路狀態或稍後再試。");
+                } finally {
+                    translateBtn.disabled = false;
+                    translateBtn.innerText = originalBtnText;
                 }
             });
 
             // ===== AI 核心邏輯 =====
+            // 在此環境中，API Key 必須是空字串，系統會自動在背景注入授權。
+            // 之前的 404 錯誤是因為使用了手動輸入的 Key 而阻礙了系統代理的路由匹配。
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
             const systemPrompt = `
 You are a professional, rigorous, yet friendly native English teacher.
 The user will provide an English sentence or paragraph.
@@ -379,16 +467,14 @@ Your tasks are:
 1. Correct all grammatical, spelling, punctuation, AND contextual/word-choice errors to make it sound natural and native. Pay close attention to homophones and typos (e.g., "coal" vs "cool").
 2. Analyze the reasons for the corrections, point out grammar points and vocabulary misuse, and provide specific suggestions.
 
-CRITICAL: You must provide the exact same suggestions/explanations translated into three languages: English, Traditional Chinese (zh), and Vietnamese (vi).
+CRITICAL: All explanations, grammar notes, and suggestions MUST be written entirely in English. This ensures maximum performance and speed.
 
 Respond ONLY in JSON format, without any markdown formatting like \`\`\`json.
 
 The JSON structure MUST be strictly as follows:
 {
     "corrected_text": "Put the fully corrected English text here",
-    "suggestions_en": "Put HTML formatted string here containing notes and suggestions IN ENGLISH. Use basic tags like <ul>, <li>, <strong>, <br>. For each error, list: 'Original' -> 'Corrected', and briefly explain why.",
-    "suggestions_zh": "Put HTML formatted string here containing notes and suggestions IN TRADITIONAL CHINESE.",
-    "suggestions_vi": "Put HTML formatted string here containing notes and suggestions IN VIETNAMESE."
+    "suggestions_en": "Put HTML formatted string here containing notes and suggestions IN ENGLISH. Use basic tags like <ul>, <li>, <strong>, <br>. For each error, list: 'Original' -> 'Corrected', and briefly explain why."
 }`;
 
             function setLoading(isLoading) {
@@ -500,18 +586,21 @@ The JSON structure MUST be strictly as follows:
                             const cText = parsedData.corrected_text || "無法生成修正後的文本。";
                             correctedText.innerText = cText;
                             
-                            // 儲存三種語言的建議到變數中
+                            // 儲存英文建議，並清空中文與越文的快取
                             currentSuggestionsData = {
                                 en: parsedData.suggestions_en || "No suggestions provided.",
-                                zh: parsedData.suggestions_zh || "沒有提供建議。",
-                                vi: parsedData.suggestions_vi || "Không có gợi ý nào được cung cấp."
+                                zh: null,
+                                vi: null
                             };
 
-                            // 根據當前選擇的語言顯示內容 (透過 DOMPurify 過濾)
-                            const selectedLang = langSelect.value;
-                            suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
+                            // 檢查完畢後，強制將語系切回預設的英文
+                            langSelect.value = 'en';
+                            updateTranslateBtnVisibility();
 
-                            // 存入陣列並寫入 localStorage 實現資料持久化
+                            // 顯示英文內容 (透過 DOMPurify 過濾)
+                            suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']);
+
+                            // 存入歷史記錄
                             const now = new Date();
                             const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
                             correctionHistory.push({
