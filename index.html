@@ -458,7 +458,7 @@ The JSON structure MUST be strictly as follows:
             // 在此環境中，API Key 必須是空字串，系統會自動在背景注入授權。
             // 之前的 404 錯誤是因為使用了手動輸入的 Key 而阻礙了系統代理的路由匹配。
             const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
 
             const systemPrompt = `
 You are a professional, rigorous, yet friendly native English teacher.
