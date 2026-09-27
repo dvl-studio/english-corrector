@@ -13,10 +13,14 @@
 
     <!-- 主容器 -->
     <div class="max-w-5xl mx-auto md:py-8 h-screen md:h-auto flex flex-col md:flex-row shadow-2xl bg-white overflow-hidden md:rounded-2xl relative">
-        
-        <!-- 左側：輸入區域 -->
-        <div class="w-full md:w-1/2 p-6 md:p-8 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col bg-gray-50">
-            <div class="mb-6 flex justify-between items-start">
+
+        <!-- =====================================================
+             左側：輸入區域
+             修正：加入 flex-1 md:flex-none min-h-0
+             讓手機版能正確分配 h-screen 的高度，防止超出
+             ===================================================== -->
+        <div class="w-full md:w-1/2 p-6 md:p-8 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col bg-gray-50 flex-1 md:flex-none min-h-0">
+            <div class="mb-4 flex justify-between items-start flex-shrink-0">
                 <div>
                     <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -38,14 +42,16 @@
                 </div>
             </div>
 
-            <div class="flex-grow flex flex-col relative">
+            <!-- 修正：加入 min-h-0 讓 textarea 在 flex 容器內可正確收縮 -->
+            <div class="flex-grow flex flex-col relative min-h-0">
                 <textarea id="sourceText" class="w-full flex-grow p-4 bg-white border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow text-base placeholder-gray-400" placeholder="Type or paste your English text here..."></textarea>
                 <div class="absolute bottom-4 right-4 flex items-center gap-2 text-xs text-gray-400">
                     <span id="charCount">0 字</span>
                 </div>
             </div>
 
-            <div class="mt-4 flex gap-3">
+            <!-- 修正：加入 flex-shrink-0 防止按鈕區被壓縮 -->
+            <div class="mt-3 flex gap-3 flex-shrink-0">
                 <button id="clearBtn" class="px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition-colors focus:outline-none hidden">
                     清除
                 </button>
@@ -59,8 +65,13 @@
             </div>
         </div>
 
-        <!-- 右側：結果區域 -->
-        <div class="w-full md:w-1/2 p-6 md:p-8 flex flex-col bg-white">
+        <!-- =====================================================
+             右側：結果區域
+             修正：加入 flex-1 md:flex-none min-h-0
+             手機版佔滿剩餘高度，並允許內部子元素 overflow 滾動
+             ===================================================== -->
+        <div class="w-full md:w-1/2 p-6 md:p-8 flex flex-col bg-white flex-1 md:flex-none min-h-0">
+
             <!-- 初始空狀態 -->
             <div id="emptyState" class="flex-grow flex flex-col items-center justify-center text-gray-400 space-y-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -69,10 +80,17 @@
                 <p class="text-center">輸入英文後點擊「檢查語法」<br>修正結果與建議將顯示於此</p>
             </div>
 
-            <!-- 結果內容區 (預設隱藏) -->
-            <div id="resultContainer" class="flex-grow flex flex-col hidden space-y-6">
+            <!-- =====================================================
+                 結果內容區 (預設隱藏)
+                 修正：加入 min-h-0 — 這是讓 overflow-y-auto 生效的關鍵
+                 沒有 min-h-0，flex 子元素的最小高度預設為內容高度，
+                 導致父層無法限制高度，捲軸就不會出現
+                 ===================================================== -->
+            <div id="resultContainer" class="flex-grow flex flex-col hidden space-y-4 min-h-0">
+
                 <!-- 第二框：修正後的句子 -->
-                <div class="flex flex-col flex-grow-0">
+                <!-- 修正：flex-shrink-0 確保此框不會被壓縮，保留固定空間 -->
+                <div class="flex flex-col flex-shrink-0">
                     <div class="flex justify-between items-center mb-2">
                         <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-blue-500"></span>
@@ -82,14 +100,20 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 icon-default" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         </button>
                     </div>
-                    <div id="correctedText" class="w-full p-4 bg-blue-50/50 border border-blue-200 rounded-xl text-gray-800 text-lg md:text-xl font-medium leading-relaxed shadow-inner">
+                    <!-- 修正：加入 max-h-28 overflow-y-auto 避免超長修正文字佔用太多空間 -->
+                    <div id="correctedText" class="w-full p-4 bg-blue-50/50 border border-blue-200 rounded-xl text-gray-800 text-lg md:text-xl font-medium leading-relaxed shadow-inner overflow-y-auto max-h-28 md:max-h-40">
                         <!-- 修正結果將動態插入至此 -->
                     </div>
                 </div>
 
-                <!-- 第三框：語法注意事項與建議 -->
-                <div class="flex flex-col flex-grow">
-                    <div class="flex justify-between items-center mb-2">
+                <!-- =====================================================
+                     第三框：語法注意事項與建議
+                     修正：加入 min-h-0 — 讓此 flex 子元素可以收縮
+                     搭配 suggestionsBox 的 overflow-y-auto，實現捲軸效果
+                     ===================================================== -->
+                <div class="flex flex-col flex-grow min-h-0">
+                    <!-- 標題列：加入 flex-shrink-0 防止被壓縮 -->
+                    <div class="flex justify-between items-center mb-2 flex-shrink-0">
                         <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
                             語法注意事項與建議 (Grammar Notes)
@@ -101,7 +125,7 @@
                                 <option value="zh">繁體中文</option>
                                 <option value="vi">Tiếng Việt</option>
                             </select>
-                            <!-- 新增翻譯按鈕 -->
+                            <!-- 翻譯按鈕 -->
                             <button id="translateBtn" class="text-xs bg-amber-200 hover:bg-amber-300 text-amber-800 px-3 py-1 rounded-md transition-colors hidden font-medium shadow-sm focus:outline-none" title="將建議翻譯為選定的語言">
                                 翻譯
                             </button>
@@ -110,15 +134,16 @@
                             </button>
                         </div>
                     </div>
+                    <!-- 建議框：flex-grow 撐滿剩餘空間，overflow-y-auto 顯示捲軸 -->
                     <div id="suggestionsBox" class="w-full flex-grow p-5 bg-amber-50/30 border border-amber-200 rounded-xl text-gray-800 overflow-y-auto text-sm leading-relaxed shadow-inner prose prose-amber">
                         <!-- 建議內容將動態插入至此 -->
                     </div>
                 </div>
             </div>
-            
+
             <!-- 錯誤提示訊息 -->
-            <div id="errorMessage" class="hidden mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div id="errorMessage" class="hidden mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2 flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <span id="errorText">發生錯誤，請稍後再試。</span>
@@ -135,7 +160,7 @@
             </h2>
             <p class="text-sm text-gray-600 mb-4">
                 請輸入您的 Google Gemini API Key。此金鑰將僅安全地儲存於您的瀏覽器本地空間 (localStorage)。<br>
-                <strong class="text-red-500 block mt-2">安全注意：</strong>這是純前端架構工具，雖然使用 HTTP Header 傳輸，但金鑰仍會暴露在您的瀏覽器端，請勿在公用電腦或非信任環境使用。若要部署為公開服務，請務必透過後端伺服器轉發請求。<br>
+                <strong class="text-red-500 block mt-2">安全注意：</strong>這是純前端架構工具，雖然使用 HTTP Header 傳輸，但金鑰仍會暴露在您的瀏覽器端，請勿在公用電腦或非信任環境使用。<br>
                 <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-500 hover:underline mt-2 inline-block">點此前往免費申請 API Key</a>
             </p>
             <input type="password" id="apiKeyInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mb-4" placeholder="AIzaSy...">
@@ -180,7 +205,11 @@
             const errorText = document.getElementById('errorText');
             const langSelect = document.getElementById('langSelect');
             const translateBtn = document.getElementById('translateBtn');
-            
+            const apiModal = document.getElementById('apiModal');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const closeApiModalBtn = document.getElementById('closeApiModalBtn');
+            const saveApiModalBtn = document.getElementById('saveApiModalBtn');
+            const configBtn = document.getElementById('configBtn');
             const historyBtn = document.getElementById('historyBtn');
             const closeHistoryBtn = document.getElementById('closeHistoryBtn');
             const historySidebar = document.getElementById('historySidebar');
@@ -190,13 +219,9 @@
 
             // 狀態變數：從 localStorage 載入持久化記錄
             let correctionHistory = JSON.parse(localStorage.getItem('grammar_history')) || [];
-            
+
             // 用來暫存當前 API 回傳的 3 種語言的建議，以便切換
-            let currentSuggestionsData = {
-                en: "",
-                zh: null,
-                vi: null
-            };
+            let currentSuggestionsData = { en: "", zh: null, vi: null };
             let currentTtsBtn = null;
 
             // XSS 防禦：簡易的 HTML 跳脫函式，供純文字欄位使用
@@ -206,7 +231,7 @@
                     '&': '&amp;',
                     '<': '&lt;',
                     '>': '&gt;',
-                    "'": '&#39;',
+                    "'": '&#x27;',
                     '"': '&quot;'
                 }[tag] || tag));
             }
@@ -246,7 +271,6 @@
             function updateTranslateBtnVisibility() {
                 const selectedLang = langSelect.value;
                 if (selectedLang === 'en' || currentSuggestionsData[selectedLang]) {
-                    // 如果選英文，或該語言已經翻譯過了，就隱藏翻譯按鈕
                     translateBtn.classList.add('hidden');
                 } else {
                     translateBtn.classList.remove('hidden');
@@ -276,11 +300,8 @@
                     const realIndex = correctionHistory.length - 1 - index;
                     const div = document.createElement('div');
                     div.className = 'p-3 border border-gray-100 rounded-lg hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors group relative shadow-sm';
-                    
-                    // 使用 escapeHTML 過濾原始資料，防止 XSS
                     const safeOriginal = escapeHTML(item.original);
                     const safeCorrected = escapeHTML(item.corrected);
-                    
                     div.innerHTML = `
                         <div class="text-xs text-gray-400 mb-1 flex justify-between">
                             <span>${item.time}</span>
@@ -297,22 +318,16 @@
             function loadHistoryItem(index) {
                 const item = correctionHistory[index];
                 sourceText.value = item.original;
-                correctedText.innerText = item.corrected; // 純文字安全
-                
-                // 載入該歷史記錄的三語資料
+                correctedText.innerText = item.corrected;
                 currentSuggestionsData = item.suggestionsData;
-                
-                // 根據當前下拉選單的值渲染
                 const selectedLang = langSelect.value;
                 if (currentSuggestionsData[selectedLang]) {
                     suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
                 } else {
-                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']) + 
+                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']) +
                         `<div class="mt-4 p-3 bg-white/60 border border-amber-200 rounded-lg text-amber-800 text-center text-sm font-medium">點擊「翻譯」按鈕以獲取此語言的說明</div>`;
                 }
-                
                 updateTranslateBtnVisibility();
-
                 emptyState.classList.add('hidden');
                 resultContainer.classList.remove('hidden');
                 errorMessage.classList.add('hidden');
@@ -344,20 +359,15 @@
                 }
                 currentTtsBtn = btnElement;
                 const utterance = new SpeechSynthesisUtterance(text);
-                
-                // 動態設定語系以確保發音正確
-                utterance.lang = lang; 
-                
+                utterance.lang = lang;
                 utterance.onend = () => {
                     iconDefault.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M15 12a3 3 0 11-6 0 3 3 0 016 0z" />';
                     iconDefault.classList.remove('text-red-500');
                     currentTtsBtn = null;
                 };
                 utterance.onerror = utterance.onend;
-                
                 iconDefault.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />';
                 iconDefault.classList.add('text-red-500');
-                
                 window.speechSynthesis.speak(utterance);
             }
 
@@ -365,16 +375,13 @@
                 btn.addEventListener('click', () => {
                     const targetId = btn.getAttribute('data-target');
                     const targetEl = document.getElementById(targetId);
-                    const textToRead = targetEl.innerText || targetEl.textContent; 
-                    
-                    // 根據目標決定語系
+                    const textToRead = targetEl.innerText || targetEl.textContent;
                     let lang = 'en-US';
                     if (targetId === 'suggestionsBox') {
                         const selectedLang = langSelect.value;
                         if (selectedLang === 'zh') lang = 'zh-TW';
                         else if (selectedLang === 'vi') lang = 'vi-VN';
                     }
-                    
                     playTTS(textToRead, btn, lang);
                 });
             });
@@ -383,14 +390,11 @@
             langSelect.addEventListener('change', (e) => {
                 const selectedLang = e.target.value;
                 updateTranslateBtnVisibility();
-                
                 if (currentSuggestionsData && currentSuggestionsData[selectedLang]) {
-                    // 如果有該語言的資料，直接顯示
                     suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
                 } else if (currentSuggestionsData && currentSuggestionsData['en']) {
-                    // 如果沒有，顯示英文原文並提示需要翻譯
                     const langName = e.target.options[e.target.selectedIndex].text;
-                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']) + 
+                    suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']) +
                         `<div class="mt-4 p-3 bg-white/60 border border-amber-200 rounded-lg text-amber-800 text-center text-sm font-medium">請點擊上方的「翻譯」按鈕來獲取 ${langName} 翻譯</div>`;
                 }
             });
@@ -402,7 +406,7 @@
 
                 const targetLangName = selectedLang === 'zh' ? 'Traditional Chinese' : 'Vietnamese';
                 const translatePrompt = `You are an expert translator. Translate the following English grammar notes into ${targetLangName}.
-CRITICAL INSTRUCTIONS: 
+CRITICAL INSTRUCTIONS:
 1. Maintain all original HTML tags (<ul>, <li>, <strong>, <br>, etc.) exactly as they are. Do not remove or alter them.
 2. Translate the explanatory reasons and grammar concepts.
 3. Keep the original and corrected English text examples (like 'Original -> Corrected') in English to preserve context.
@@ -417,9 +421,14 @@ The JSON structure MUST be strictly as follows:
                 translateBtn.innerHTML = `<svg class="animate-spin h-4 w-4 mr-1 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>翻譯中...`;
 
                 try {
-                    const response = await fetchWithRetry(apiUrl, {
+                    const apiKeyForTranslate = getApiKey();
+                    const translateApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+                    const response = await fetchWithRetry(translateApiUrl, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': apiKeyForTranslate
+                        },
                         body: JSON.stringify({
                             contents: [{ parts: [{ text: originalHtml }] }],
                             systemInstruction: { parts: [{ text: translatePrompt }] },
@@ -430,17 +439,12 @@ The JSON structure MUST be strictly as follows:
                     const data = await response.json();
                     if (data.candidates && data.candidates[0].content.parts[0].text) {
                         const parsedData = JSON.parse(data.candidates[0].content.parts[0].text);
-                        
-                        // 儲存翻譯結果
                         currentSuggestionsData[selectedLang] = parsedData.translated_html;
                         suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData[selectedLang]);
-                        
-                        // 更新歷史記錄中的快取，這樣切換回以前的記錄時不用重新翻譯
                         const currentHistoryIndex = correctionHistory.findIndex(h => h.suggestionsData && h.suggestionsData.en === currentSuggestionsData.en);
                         if (currentHistoryIndex !== -1) {
                             correctionHistory[currentHistoryIndex].suggestionsData[selectedLang] = parsedData.translated_html;
                         }
-                        
                         updateTranslateBtnVisibility();
                     } else {
                         throw new Error("無法獲取翻譯回應");
@@ -455,11 +459,6 @@ The JSON structure MUST be strictly as follows:
             });
 
             // ===== AI 核心邏輯 =====
-            // 在此環境中，API Key 必須是空字串，系統會自動在背景注入授權。
-            // 之前的 404 錯誤是因為使用了手動輸入的 Key 而阻礙了系統代理的路由匹配。
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
-
             const systemPrompt = `
 You are a professional, rigorous, yet friendly native English teacher.
 The user will provide an English sentence or paragraph.
@@ -523,20 +522,15 @@ The JSON structure MUST be strictly as follows:
                     try {
                         const response = await fetch(url, options);
                         if (response.ok) return response;
-                        
-                        // 遇到 400, 401, 403, 404 等不可恢復的客戶端錯誤，直接中斷不重試 (排除 429 限流)
                         if (response.status >= 400 && response.status < 500 && response.status !== 429) {
                             throw new Error(`Fatal HTTP error! status: ${response.status}`);
                         }
-                        
                         if (i === maxRetries - 1) throw new Error(`HTTP error! status: ${response.status}`);
                     } catch (error) {
-                        // 如果是致命錯誤或達到最大重試次數，則向上拋出錯誤
                         if (error.message.includes('Fatal') || i === maxRetries - 1) {
                             throw error;
                         }
                     }
-                    // 等待對應秒數後重試
                     await new Promise(resolve => setTimeout(resolve, delays[i]));
                 }
             }
@@ -552,68 +546,58 @@ The JSON structure MUST be strictly as follows:
                 if (!text) return;
 
                 setLoading(true);
-                
-                // 改用穩定的 API Endpoint 別名，移除特定日期字尾
+
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
 
                 try {
                     const response = await fetchWithRetry(apiUrl, {
                         method: 'POST',
-                        headers: { 
+                        headers: {
                             'Content-Type': 'application/json',
-                            // 修正：透過自訂 Header 安全傳輸 API Key，避免在 URL 中暴露
                             'x-goog-api-key': currentApiKey
                         },
                         body: JSON.stringify({
                             contents: [{ parts: [{ text: text }] }],
                             systemInstruction: { parts: [{ text: systemPrompt }] },
-                            generationConfig: { 
-                                temperature: 0.1, 
-                                responseMimeType: "application/json" 
+                            generationConfig: {
+                                temperature: 0.1,
+                                responseMimeType: "application/json"
                             }
                         })
                     });
 
                     const data = await response.json();
-                    
+
                     if (data.candidates && data.candidates[0].content.parts[0].text) {
                         const rawResponseText = data.candidates[0].content.parts[0].text;
-                        
                         try {
                             const parsedData = JSON.parse(rawResponseText);
-                            
-                            // 更新結果
                             const cText = parsedData.corrected_text || "無法生成修正後的文本。";
                             correctedText.innerText = cText;
-                            
-                            // 儲存英文建議，並清空中文與越文的快取
+
                             currentSuggestionsData = {
                                 en: parsedData.suggestions_en || "No suggestions provided.",
                                 zh: null,
                                 vi: null
                             };
 
-                            // 檢查完畢後，強制將語系切回預設的英文
                             langSelect.value = 'en';
                             updateTranslateBtnVisibility();
-
-                            // 顯示英文內容 (透過 DOMPurify 過濾)
                             suggestionsBox.innerHTML = DOMPurify.sanitize(currentSuggestionsData['en']);
 
-                            // 存入歷史記錄
                             const now = new Date();
                             const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
                             correctionHistory.push({
                                 original: text,
                                 corrected: cText,
-                                suggestionsData: { ...currentSuggestionsData }, 
+                                suggestionsData: { ...currentSuggestionsData },
                                 time: timeString
                             });
                             localStorage.setItem('grammar_history', JSON.stringify(correctionHistory));
 
                             emptyState.classList.add('hidden');
                             resultContainer.classList.remove('hidden');
-                            
+
                         } catch (parseError) {
                             console.error('JSON Parse error:', parseError);
                             showError("AI 回傳的格式不正確，請再試一次。");
